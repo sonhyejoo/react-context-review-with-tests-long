@@ -1,97 +1,68 @@
-import { useContext } from 'react';
-import { mount, shallow } from 'enzyme';
-
+import React from 'react';
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import '@testing-library/jest-dom';
 import App from '../App';
 import SetCoffeeBean from '../components/SetCoffeeBean';
 import CoffeeProvider from '../context/CoffeeContext';
 import coffeeBeans from '../mockData/coffeeBeans.json';
 
-const mockFn = jest.fn();
-
-jest.mock('react', () => ({
-  ...jest.requireActual('react'), // use actual for all non-hook parts
-  useContext: jest.fn()
-}));
-
 describe('SetCoffeeBean', () => {
-  // This first test should pass based on the starter code.
-  // It is here to make sure students don't change the div name, which
-  // would break the subsequent test. 
-  test ('SetCoffeeBean renders a div with a class of "set-coffee-bean"', () => {
-    useContext.mockImplementation(() => ({
+  const mockFn = jest.fn();
+  const useContextSpy = jest.spyOn(React, 'useContext');
+
+  it ('should be invoked by the App component', () => {
+    useContextSpy.mockImplementation(() => ({
       coffeeBean: { id: 5, name: 'Set Bean' },
       setCoffeeBeanId: mockFn,
     }));
-    const setCoffee = mount(
-      <CoffeeProvider>
-        <SetCoffeeBean coffeeBeans={coffeeBeans} />
-      </CoffeeProvider>
-    );
+
+    render(<App />);
     
-    expect(setCoffee.find('div.set-coffee-bean')).toHaveLength(1);
-    expect(setCoffee.find('h2').text()).toEqual("Select a Coffee Bean");
-    expect(setCoffee.find('h2').parent().is('div.set-coffee-bean')).toBe(true); 
-  });
-  
-  test ('SetCoffeeBean changes the context\'s coffee bean using the id of the bean', () => {
-    useContext.mockImplementation(() => ({
-      coffeeBean: { id: 5, name: 'Set Bean' },
-      setCoffeeBeanId: mockFn,
-    }));
-    const setCoffee = mount(
-      <CoffeeProvider>
-        <SetCoffeeBean coffeeBeans={coffeeBeans} />
-      </CoffeeProvider>
-    );
-    
-    expect(setCoffee.find('div.set-coffee-bean')).toHaveLength(1);
-    expect(setCoffee.find('h2').text()).toEqual("Select a Coffee Bean");
-    expect(setCoffee.find('h2').parent().is('div.set-coffee-bean')).toBe(true);
-  
-    setCoffee.find('select[name="coffee-bean"]').simulate('change', { target: { value: "3" } });
-    expect(mockFn.mock.calls[0][0]).toEqual("3");
-  
-    setCoffee.find('select[name="coffee-bean"]').simulate('change', { target: { value: "6" } });
-    expect(mockFn.mock.calls[1][0]).toEqual("6");
+    // Use regex since not checking for whole string
+    expect(screen.getByRole('heading', { name: /Select a Coffee Bean/ })).toBeInTheDocument();
+    // Use `combobox` to grab the `select` input
+    expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
-  test ('SetCoffeeBean selects the Liberica coffee bean in the select dropdown if it is selected', () => {
-    useContext.mockImplementation(() => ({
+  it ('should update coffeeBeanId when new coffee bean is selected from dropdown', () => {
+    const setCoffeeBeanId = mockFn;
+    useContextSpy.mockImplementationOnce(() => ({
       coffeeBean: 
       {
         "id": "3",
         "name": "Liberica"
       },
-      setCoffeeBeanId: mockFn,
+      setCoffeeBeanId: setCoffeeBeanId
     }));
-    const setCoffee = mount(
-      <CoffeeProvider>
-        <SetCoffeeBean coffeeBeans={coffeeBeans} />
-      </CoffeeProvider>
-    );
+
+    render (<SetCoffeeBean coffeeBeans={coffeeBeans} />);
     
-    expect(setCoffee.find('select[name="coffee-bean"]').props().value).toEqual("3");
+    userEvent.selectOptions(
+      screen.getByRole('combobox'),
+      screen.getByRole('option', { name: 'Liberica'})
+    )
+    expect(setCoffeeBeanId).toHaveBeenCalledWith("3");
+    
+    userEvent.selectOptions(
+      screen.getByRole('combobox'),
+      screen.getByRole('option', { name: 'Excelsa'})
+    )
+    expect(setCoffeeBeanId).toHaveBeenCalledWith("4");
   });
 
-  test ('SetCoffeeBean selects the Robusta coffee bean in the select dropdown if it is selected', () => {
-    useContext.mockImplementation(() => ({
-      coffeeBean: {
-        "id": "2",
-        "name": "Robusta"
-      },
-      setCoffeeBeanId: mockFn,
-    }));
-    const setCoffee = mount(
+  it ('should cause SelectedCoffeeBean to update when a new coffee bean is selected (Integration test)', () => {
+    useContextSpy.mockRestore(); // Enables test to run actual useContext
+    render(
       <CoffeeProvider>
-        <SetCoffeeBean coffeeBeans={coffeeBeans} />
-      </CoffeeProvider>
+        <App />
+      </CoffeeProvider >
     );
-    
-    expect(setCoffee.find('select[name="coffee-bean"]').props().value).toEqual("2");
-  });
-  
-  test ('SetCoffeeBean is used by the App component', () => {
-    const appWrapper = shallow(<App />);
-    expect(appWrapper.find(SetCoffeeBean)).toHaveLength(1);
-  });
+
+    userEvent.selectOptions(
+      screen.getByRole('combobox'),
+      screen.getByRole('option', { name: 'Excelsa'})
+    )
+    expect(screen.getByRole('heading', { name: 'Current Selection: Excelsa' })).toBeInTheDocument();
+  });  
 });
