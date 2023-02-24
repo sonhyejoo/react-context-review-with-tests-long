@@ -32,10 +32,12 @@ describe('SelectedCoffeeBean', () => {
       setCoffeeBeanId: mockFn
     });
 
-    render(<SelectedCoffeeBean />);
+    const { rerender } = render(<SelectedCoffeeBean />);
     expect(screen.getByRole('heading', { name: 'Current Selection: Set Bean' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Current Selection: Vanilla' })).not.toBeInTheDocument();
     
-    render(<SelectedCoffeeBean />);
+    rerender(<SelectedCoffeeBean />);
     expect(screen.getByRole('heading', { name: 'Current Selection: Vanilla' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Current Selection: Set Bean' })).not.toBeInTheDocument();
   });
 });
